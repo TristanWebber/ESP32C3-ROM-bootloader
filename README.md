@@ -231,7 +231,7 @@ In the boot process, some undocumented register operations were observed. The in
 |0x800 | unknown  | _init       |
 |0x801 | unknown  | _init       |
 
-Three read/writes to undocumented CSRs were observed in the init code during the configuration of interrupts. The 0x000 CSR is not documented in the ESP32 TRM, however it appears in the RISC-V Specification as the `ucause` (User Cause) register. This would make sense where there were user-level interrupts in the implementation. It appears that this is not used at present because all code seems to be executed with the machine privilege level. However, it appears there may be some [future intent](https://docs.espressif.com/projects/esp-privilege-separation/en/latest/esp32c3/index.html) by Espressif to implement a seperate user code in the IDF.
+Three read/writes to undocumented CSRs were observed in the init code during the configuration of interrupts. The 0x000 CSR is not documented in the ESP32 TRM, however it appears in the RISC-V Specification as the `ucause` (User Cause) register. This would make sense if there were user-level interrupts in the implementation. It appears that this is not used at present because all code seems to be executed with the machine privilege level. However, it appears there may be some [future intent](https://docs.espressif.com/projects/esp-privilege-separation/en/latest/esp32c3/index.html) by Espressif to implement a seperate user code in the IDF.
 
 The CSRs 0x800 and 0x801 are reserved as custom CSRs in the RISC-V Specification. There is no reference to these registers in the ESP32-C3 TRM, however there context of usage in the ROM bootloader suggests they are related to the interrupt system. In both cases, the only operation on those registers is to set bit 0.
 
@@ -239,11 +239,11 @@ The CSRs 0x800 and 0x801 are reserved as custom CSRs in the RISC-V Specification
 
 Two entirely undocumented base addresses were identified.
 
-**Base address 0x600C_4000 (CACHE)**
+1. **Base address 0x600C_4000 (CACHE)**
 
 The base address of this register is marked as Reserved in the TRM. The context of labels referencing this area of code suggest this is related to the instruction and data caches.
 
-**Base address 0x600C_5000 (MMU)**
+2. **Base address 0x600C_5000 (MMU)**
 
 The base address of this register is marked as Reserved in the TRM. The context of labels referencing this area of code suggest this is related to the Memory Management Unit (MMU).
 
@@ -251,21 +251,21 @@ The base address of this register is marked as Reserved in the TRM. The context 
 
 A small number of undocumented registers, or writes to a part of a register marked as 'reserved', were found within the ROM bootloader.
 
-**Base address 0x6000_8000 (LOW_POWER)**
+1. **Base address 0x6000_8000 (LOW_POWER)**
 
 A series of offsets were accessed to read efuse values:
 
 |offset | function                   |
 |-------|----------------------------|
 |0x0830 | EFUSE_RD_REPEAT_DATA0_REG  |
-|0x8038 | EFUSE_RD_REPEAT_DATA2_REG  |
+|0x0838 | EFUSE_RD_REPEAT_DATA2_REG  |
 |0x083C | EFUSE_RD_REPEAT_DATA3_REG  |
-|0x8044 | EFUSE_RD_MAC_SPI_SYS_0_REG |
-|0x8048 | EFUSE_RD_MAC_SPI_SYS_1_REG |
+|0x0844 | EFUSE_RD_MAC_SPI_SYS_0_REG |
+|0x0848 | EFUSE_RD_MAC_SPI_SYS_1_REG |
 
-The bits and registers were consistent with the TRM documentation for the eFuse controller documented under base address 0x6001_A000. It appears that these registers are duplicated in the LOW_POWER address range.
+The bits and registers (with offset minus 0x0800) were consistent with the TRM documentation for the eFuse controller documented under base address 0x6001_A000. It appears that these registers are duplicated in the LOW_POWER address range. Eg, 0x6000_8830 appears to be the same as 0x6001_A030.
 
-**Base address 0x6000_3000 (SPI0)**
+2. **Base address 0x6000_3000 (SPI0)**
 
 |offset | function                  |
 |-------|---------------------------|
@@ -275,4 +275,4 @@ The Wait_SPI_Idle function reads from an undocumented register under the SPI0 ba
 
 ## Conclusion
 
-The program flow for the ESP32-C3 ROM bootloader as determined by reverse engineering was found to follow the process documented by Espressif. There were several registers used in the ROM bootloader that are not documented in the TRM. The functionality of most of these registers was able to be inferred from the context of the code being executed in that region and for the most part, the lack of knowledge of those registers would not prevent a sufficiently motivated developer from replicating the basic functionality of the ROM bootloader, were it hypothetically possible to implement truly 'bare metal' code on the ESP32-C3. However, the lack of documentation on the Cache, MMU and two custom CSRs means that in all likelihood, a user would be unable to match the performance of the factory ROM bootloader, since they would not be able to correctly configure the instruction and data caches. Given that the instruction cache and data cache are being used by the bootloader, it would be wise to avoid the use of the internal SRAM0 instruction address range (0x4037_C000 to 0x4037_FFFF) when linking applications. The ROM bootloader appeared to perform minimal configuration of peripherals, and most peripherals were subsequently shut down after being used unless critical to the operation of the SOC beyond the completion of the ROM bootloader.
+The program flow for the ESP32-C3 ROM bootloader as determined by reverse engineering was found to follow the process documented by Espressif. There were several registers used in the ROM bootloader that are not documented in the TRM. The functionality of most of these registers was able to be inferred from the context of the code being executed in that region and for the most part, the lack of knowledge of those registers would not prevent a sufficiently motivated developer from replicating the basic functionality of the ROM bootloader, were it hypothetically possible to implement truly 'bare metal' code on the ESP32-C3. However, the lack of documentation on the Cache, MMU and two custom CSRs means that in all likelihood, a user would be unable to match the performance of the factory ROM bootloader, since they would not be able to correctly configure the instruction and data caches. Given that the instruction cache and data cache are being used by the bootloader, it would be wise to avoid the use of the internal SRAM0 instruction address range (0x4037_C000 to 0x4037_FFFF) when linking 'bare metal' applications. The ROM bootloader appeared to perform minimal configuration of peripherals, and most peripherals were subsequently shut down after being used unless critical to the operation of the SOC beyond the completion of the ROM bootloader.
